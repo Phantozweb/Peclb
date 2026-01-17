@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LoginForm } from './components/LoginForm';
-import { Dashboard } from './Dashboard';
-import { Eye, Container, ArrowUpRight, Scan } from 'lucide-react';
+import { Eye, Container, ArrowUpRight, Scan, LogOut } from 'lucide-react';
 import { User } from './secure';
 
 const App: React.FC = () => {
@@ -19,10 +18,6 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
   };
-
-  if (currentUser) {
-    return <Dashboard user={currentUser} onLogout={handleLogout} />;
-  }
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row overflow-hidden bg-white">
@@ -167,13 +162,40 @@ const App: React.FC = () => {
                        LensBox
                      </h1>
                      <p className="text-sm text-slate-500 font-medium">
-                       Enter your credentials to access the portal
+                       {currentUser ? 'Secure Session Active' : 'Enter your credentials to access the portal'}
                      </p>
                    </div>
                 </div>
 
-                {/* Login Form Component */}
-                <LoginForm onLogin={handleLoginSuccess} />
+                {currentUser ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg shadow-slate-200/50 text-center animate-in fade-in zoom-in duration-300">
+                     <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary-50 to-primary-100 rounded-full flex items-center justify-center mb-4 text-2xl font-bold text-primary-600 shadow-inner border border-primary-200">
+                        {currentUser.initials}
+                     </div>
+                     <h2 className="text-xl font-bold text-slate-900 mb-1">{currentUser.name}</h2>
+                     <p className="text-sm text-slate-500 mb-6 font-medium">{currentUser.email}</p>
+                     
+                     <div className="flex items-center justify-center gap-2 mb-8">
+                       <span className="flex h-2 w-2 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">{currentUser.role} Account</span>
+                     </div>
+
+                     <button 
+                       onClick={handleLogout}
+                       className="w-full relative group overflow-hidden rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:bg-slate-800 hover:shadow-slate-900/20 hover:-translate-y-0.5 active:translate-y-0"
+                     >
+                       <span className="relative flex items-center justify-center gap-2">
+                          <LogOut className="w-4 h-4" />
+                          <span>Sign Out</span>
+                       </span>
+                     </button>
+                  </div>
+                ) : (
+                  <LoginForm onLogin={handleLoginSuccess} />
+                )}
 
                 {/* Mobile Footer */}
                 <div className="mt-8 text-center lg:hidden pb-6">
