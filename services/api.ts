@@ -24,6 +24,20 @@ interface SheetTemplate {
   message_content: string;
 }
 
+// Helper to clean time from Google Sheets (which often sends 1899-12-30T...)
+const parseTime = (val: any) => {
+  if (!val) return '';
+  // If it's a full ISO string (e.g., 1899-12-30T13:30:00.000Z)
+  if (typeof val === 'string' && val.includes('T')) {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      // Return 24h format HH:mm for HTML input compatibility
+      return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    }
+  }
+  return val; // Assume it's already a string like "13:30" or empty
+};
+
 export const api = {
   /**
    * Fetch all data (Logs, Templates, Staff)
@@ -38,13 +52,13 @@ export const api = {
       // Transform Logs: Snake_case (Sheet) -> CamelCase (App)
       // Filter out rows where id or patient_name is missing (empty sheet rows)
       const logs: CallLog[] = (data.logs || [])
-        .filter((row: any) => row.id && row.patient_name && String(row.id).trim() !== '')
+        .filter((row: any) => row.patient_name && String(row.patient_name).trim() !== '')
         .map((row: any) => ({
-          id: row.id.toString(),
+          id: row.id ? row.id.toString() : crypto.randomUUID(), // Ensure ID exists
           patientName: row.patient_name,
-          phoneNumber: row.phone_number,
-          date: row.date ? row.date.split('T')[0] : '', // Handle ISO strings if GAS returns them
-          time: row.time,
+          phoneNumber: row.phone_number ? String(row.phone_number) : '', // Force string for phone number
+          date: row.date ? row.date.split('T')[0] : '', 
+          time: parseTime(row.time),
           status: row.status,
           sentiment: row.sentiment,
           feedback: row.feedback,
@@ -57,7 +71,6 @@ export const api = {
         }));
 
       // Transform Templates
-      // Assumes templates are stored with IDs 1, 2, 3...
       const templates = (data.templates || [])
         .sort((a: any, b: any) => Number(a.id) - Number(b.id))
         .map((t: any) => t.message_content);
@@ -78,11 +91,11 @@ export const api = {
       action: 'create',
       table: 'Call_Logs',
       data: {
-        id: log.id,
+        id: log.id, // ID must be generated before sending
         patient_name: log.patientName,
         phone_number: log.phoneNumber,
         date: log.date,
-        time: log.time,
+        time: log.time, // Sending HH:mm string is fine for sheets
         status: log.status,
         sentiment: log.sentiment,
         feedback: log.feedback,

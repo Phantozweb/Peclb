@@ -29,7 +29,11 @@ import {
   Settings,
   Send,
   Loader2,
-  RefreshCcw
+  RefreshCcw,
+  ThumbsDown,
+  MoreHorizontal,
+  ThumbsUp,
+  ArrowLeft
 } from 'lucide-react';
 import { User } from './secure';
 import { api } from './services/api';
@@ -46,8 +50,8 @@ const STAFF_MEMBERS = [
   'Thiruveni',
   'Pressy Lara',
   'Ramaneeshwari',
-  'Kaleeshwari',
-  'Ayyamal',
+  'Kaleeswari',
+  'Ayyammal',
   'Karthika',
   'Janarthan',
   'Hariharan',
@@ -68,7 +72,7 @@ export interface CallLog {
   patientName: string;
   phoneNumber: string;
   date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  time: string; // HH:MM (24h format for input, formatted for display)
   status: 'Connected' | 'No Answer' | 'Busy' | 'Callback' | 'Wrong Number' | 'Pending';
   sentiment: 'Positive' | 'Neutral' | 'Negative';
   feedback: string;
@@ -79,6 +83,20 @@ export interface CallLog {
     staff?: string;
   };
 }
+
+// --- Helper Functions ---
+
+const formatToAmPm = (time24: string) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  if (!hours || !minutes) return time24;
+  
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  
+  return `${h12}:${minutes} ${ampm}`;
+};
 
 // --- Helper Components ---
 
@@ -95,7 +113,7 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 const StatCard = ({ label, value, icon, color, onClick, isActive }: { label: string; value: number; icon: React.ReactNode; color: string; onClick?: () => void; isActive?: boolean }) => (
   <div
     onClick={onClick}
-    className={`bg-white p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${isActive ? 'border-primary-500 ring-1 ring-primary-500 shadow-md' : 'border-slate-200 shadow-sm hover:border-slate-300'}`}
+    className={`bg-white p-4 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group h-full flex flex-col justify-between ${isActive ? 'border-primary-500 ring-1 ring-primary-500 shadow-md' : 'border-slate-200 shadow-sm hover:border-slate-300'}`}
   >
     <div className="flex justify-between items-start mb-2">
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${color}`}>
@@ -105,7 +123,7 @@ const StatCard = ({ label, value, icon, color, onClick, isActive }: { label: str
     </div>
     <div className="relative z-10">
       <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
-      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="text-xs font-medium text-slate-500 truncate">{label}</p>
     </div>
     <div className={`absolute -bottom-4 -right-4 w-16 h-16 rounded-full opacity-10 transition-transform group-hover:scale-110 ${color}`} />
   </div>
@@ -118,7 +136,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     'Busy': 'bg-yellow-50 text-yellow-700 border-yellow-100',
     'Callback': 'bg-orange-50 text-orange-700 border-orange-100',
     'Wrong Number': 'bg-slate-100 text-slate-700 border-slate-200',
-    'Pending': 'bg-slate-50 text-slate-600 border-slate-200 dashed border',
+    'Pending': 'bg-purple-50 text-purple-600 border-purple-200 dashed border',
   };
 
   const icons: Record<string, React.ReactNode> = {
@@ -127,6 +145,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     'Busy': <Activity size={12} />,
     'Callback': <History size={12} />,
     'Pending': <Clock size={12} />,
+    'Wrong Number': <X size={12} />,
   };
 
   const style = styles[status] || styles['Pending'];
@@ -147,30 +166,46 @@ const SimplePieChart = ({ data }: { data: { label: string; value: number; color:
   if (total === 0) return null;
 
   return (
-    <div className="relative w-40 h-40 mx-auto">
-      <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
-        {data.map((slice, i) => {
-          const angle = (slice.value / total) * 360;
-          if (angle === 0) return null;
-          
-          const x1 = 50 + 50 * Math.cos((Math.PI * currentAngle) / 180);
-          const y1 = 50 + 50 * Math.sin((Math.PI * currentAngle) / 180);
-          const x2 = 50 + 50 * Math.cos((Math.PI * (currentAngle + angle)) / 180);
-          const y2 = 50 + 50 * Math.sin((Math.PI * (currentAngle + angle)) / 180);
-          
-          const pathData = total === slice.value
-            ? `M 50 50 m -50, 0 a 50,50 0 1,0 100,0 a 50,50 0 1,0 -100,0`
-            : `M 50 50 L ${x1} ${y1} A 50 50 0 ${angle > 180 ? 1 : 0} 1 ${x2} ${y2} Z`;
+    <div className="flex items-center gap-8">
+      <div className="relative w-40 h-40">
+        <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
+          {data.map((slice, i) => {
+            const angle = (slice.value / total) * 360;
+            if (angle === 0) return null;
+            
+            const x1 = 50 + 50 * Math.cos((Math.PI * currentAngle) / 180);
+            const y1 = 50 + 50 * Math.sin((Math.PI * currentAngle) / 180);
+            const x2 = 50 + 50 * Math.cos((Math.PI * (currentAngle + angle)) / 180);
+            const y2 = 50 + 50 * Math.sin((Math.PI * (currentAngle + angle)) / 180);
+            
+            const pathData = total === slice.value
+              ? `M 50 50 m -50, 0 a 50,50 0 1,0 100,0 a 50,50 0 1,0 -100,0`
+              : `M 50 50 L ${x1} ${y1} A 50 50 0 ${angle > 180 ? 1 : 0} 1 ${x2} ${y2} Z`;
 
-          const el = <path key={i} d={pathData} fill={slice.color} stroke="white" strokeWidth="2" />;
-          currentAngle += angle;
-          return el;
+            const el = <path key={i} d={pathData} fill={slice.color} stroke="white" strokeWidth="2" />;
+            currentAngle += angle;
+            return el;
+          })}
+          <circle cx="50" cy="50" r="35" fill="white" />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+          <span className="text-2xl font-bold text-slate-800">{total}</span>
+          <span className="text-[10px] text-slate-400 uppercase font-medium">Logs</span>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {data.map((item, i) => {
+           const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
+           return (
+            <div key={i} className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                <span className="text-xs text-slate-400">{percentage}% ({item.value})</span>
+              </div>
+            </div>
+           );
         })}
-        <circle cx="50" cy="50" r="35" fill="white" />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
-        <span className="text-2xl font-bold text-slate-800">{total}</span>
-        <span className="text-[10px] text-slate-400 uppercase font-medium">Logs</span>
       </div>
     </div>
   );
@@ -217,11 +252,11 @@ const LogFormModal = ({ isOpen, onClose, initialData, user, onSave, isSaving }: 
       patientName: '',
       phoneNumber: '',
       date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), // Default to current time 24h
       status: 'Connected',
       sentiment: 'Neutral',
       feedback: '',
-      calledBy: user.name,
+      calledBy: user.name, // Default fallback
       followUp: { required: false }
     }
   );
@@ -289,7 +324,25 @@ const LogFormModal = ({ isOpen, onClose, initialData, user, onSave, isSaving }: 
                   value={formData.time}
                   onChange={e => setFormData({...formData, time: e.target.value})}
                 />
+                <p className="text-[10px] text-slate-400 mt-1 text-right">{formData.time ? formatToAmPm(formData.time as string) : ''}</p>
               </div>
+           </div>
+
+           <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Staff Member (Caller)</label>
+              <select 
+                 required
+                 disabled={isSaving}
+                 className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none shadow-sm cursor-pointer disabled:bg-slate-50"
+                 value={formData.calledBy}
+                 onChange={e => setFormData({...formData, calledBy: e.target.value})}
+              >
+                 <option value="" disabled>Select Staff Member</option>
+                 {STAFF_MEMBERS.map(staff => (
+                    <option key={staff} value={staff}>{staff}</option>
+                 ))}
+                 {!STAFF_MEMBERS.includes(user.name) && <option value={user.name}>{user.name} (You)</option>}
+              </select>
            </div>
 
            <div className="grid grid-cols-2 gap-5">
@@ -374,7 +427,7 @@ const HistoryModal = ({ isOpen, onClose, phoneNumber, logs }: { isOpen: boolean;
                  <div key={log.id} className="relative pl-6 border-l-2 border-slate-200 pb-6 last:pb-0">
                     <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-50 border-2 border-primary-500 box-content"></div>
                     <div className="flex justify-between items-start mb-1">
-                       <span className="text-sm font-semibold text-slate-900">{log.date} <span className="text-slate-400 font-normal">at</span> {log.time}</span>
+                       <span className="text-sm font-semibold text-slate-900">{log.date} <span className="text-slate-400 font-normal">at</span> {formatToAmPm(log.time)}</span>
                        <StatusBadge status={log.status} />
                     </div>
                     <div className="text-sm text-slate-600 mb-2">
@@ -449,15 +502,22 @@ const TemplateManagerModal = ({ isOpen, onClose, templates, onSave, isSaving }: 
   );
 };
 
-// --- WhatsApp Selection Modal ---
-const WhatsAppSelectionModal = ({ isOpen, onClose, patient, templates }: { isOpen: boolean; onClose: () => void; patient: CallLog; templates: string[] }) => {
+// --- WhatsApp Workflow Modal ---
+const WhatsAppModal = ({ isOpen, onClose, patient, templates }: { isOpen: boolean; onClose: () => void; patient: CallLog; templates: string[] }) => {
   if (!isOpen) return null;
+  
+  const [step, setStep] = useState<'select' | 'preview'>('select');
+  const [message, setMessage] = useState('');
 
-  const handleSend = (template: string) => {
-    const message = template.replace('{name}', patient.patientName);
-    const phone = patient.phoneNumber.replace(/[^0-9]/g, ''); // Strip non-numeric
-    // Assuming Indian format default if no country code, but best to rely on input. 
-    // If input is 10 digits, add 91.
+  const handleSelect = (template: string) => {
+    setMessage(template.replace('{name}', patient.patientName));
+    setStep('preview');
+  };
+
+  const handleSend = () => {
+    const rawPhone = patient.phoneNumber ? String(patient.phoneNumber) : '';
+    const phone = rawPhone.replace(/[^0-9]/g, ''); 
+    // If input is 10 digits, add 91 automatically, otherwise trust the user input
     const finalPhone = phone.length === 10 ? `91${phone}` : phone;
     
     const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
@@ -469,6 +529,8 @@ const WhatsAppSelectionModal = ({ isOpen, onClose, patient, templates }: { isOpe
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-emerald-50">
            <div className="flex items-center gap-2">
              <div className="bg-emerald-500 p-1.5 rounded-lg text-white"><MessageCircle size={18} /></div>
@@ -479,21 +541,54 @@ const WhatsAppSelectionModal = ({ isOpen, onClose, patient, templates }: { isOpe
            </div>
            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
-        <div className="p-6 overflow-y-auto max-h-[60vh] space-y-3">
-           <p className="text-sm text-slate-500 mb-2">Select a template to send:</p>
-           {templates.map((temp, idx) => (
-             <button 
-               key={idx}
-               onClick={() => handleSend(temp)}
-               className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all group"
-             >
-               <p className="text-sm text-slate-700 group-hover:text-emerald-900">{temp.replace('{name}', patient.patientName)}</p>
-               <div className="mt-2 flex items-center text-xs font-bold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                 <Send size={12} className="mr-1" /> Send Now
-               </div>
-             </button>
-           ))}
-        </div>
+
+        {/* Step 1: Template Selection */}
+        {step === 'select' && (
+          <div className="p-6 overflow-y-auto max-h-[60vh] space-y-3">
+             <p className="text-sm text-slate-500 mb-2">Select a template to customize:</p>
+             {templates.map((temp, idx) => (
+               <button 
+                 key={idx}
+                 onClick={() => handleSelect(temp)}
+                 className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all group"
+               >
+                 <p className="text-sm text-slate-700 group-hover:text-emerald-900">{temp.replace('{name}', patient.patientName)}</p>
+                 <div className="mt-2 flex items-center text-xs font-bold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <ArrowLeft size={12} className="mr-1 rotate-180" /> Use this template
+                 </div>
+               </button>
+             ))}
+          </div>
+        )}
+
+        {/* Step 2: Edit & Confirm */}
+        {step === 'preview' && (
+          <div className="p-6">
+             <div className="mb-4">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Edit Message</label>
+                <textarea 
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="w-full px-4 py-3 border border-emerald-200 rounded-xl text-sm bg-emerald-50/30 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 outline-none h-32 resize-none transition-all shadow-inner"
+                />
+             </div>
+             
+             <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setStep('select')}
+                  className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors flex items-center gap-2"
+                >
+                  <ArrowLeft size={16} /> Back
+                </button>
+                <button 
+                  onClick={handleSend}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Send size={16} /> Open WhatsApp
+                </button>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -554,12 +649,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
       const matchesSearch = log.patientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             log.phoneNumber.includes(searchQuery);
       
-      // Handle special "ACTION_REQUIRED" filter for the Pending card
+      // Handle special filters
       let matchesStatus = true;
       if (statusFilter === 'All') {
         matchesStatus = true;
-      } else if (statusFilter === 'ACTION_REQUIRED') {
-        matchesStatus = log.status === 'Pending' || log.status === 'Callback';
+      } else if (statusFilter === 'OTHERS') {
+        matchesStatus = ['Busy', 'Callback', 'No Answer', 'Wrong Number'].includes(log.status);
+      } else if (statusFilter === 'Pending') {
+        matchesStatus = log.status === 'Pending';
       } else {
         matchesStatus = log.status === statusFilter;
       }
@@ -583,15 +680,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
         await api.updateLog(logData);
         setLogs(prev => prev.map(l => l.id === logData.id ? logData : l));
       } else {
-        // Create returns { status: success, id: '...' }
-        const res = await api.createLog(logData);
-        if (res.status === 'success') {
-          setLogs(prev => [{ ...logData, id: res.id }, ...prev]);
-        }
+        // Generate ID if missing (critical fix for creation)
+        const newLog = { ...logData, id: logData.id || crypto.randomUUID() };
+        const res = await api.createLog(newLog);
+        
+        // If API returns success, use the new data
+        setLogs(prev => [newLog, ...prev]);
       }
       setIsAddModalOpen(false);
       setEditingLog(null);
     } catch (error) {
+      console.error(error);
       alert("Failed to save log. Please try again.");
     } finally {
       setIsSaving(false);
@@ -625,11 +724,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
   const handleSaveTemplates = async (newTemplates: string[]) => {
     setIsSaving(true);
     try {
-      // API requires updating individually by ID (or custom bulk logic). 
-      // For now, we loop through and update.
       for (let i = 0; i < newTemplates.length; i++) {
-        // Simple optimization: only update if changed? 
-        // For simplicity, we update all or assume user changed some.
         if (newTemplates[i] !== templates[i]) {
            await api.updateTemplate(i, newTemplates[i]);
         }
@@ -650,18 +745,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
   const stats = useMemo(() => {
     const total = logs.length;
     const connected = logs.filter(l => l.status === 'Connected').length;
-    const pending = logs.filter(l => l.status === 'Pending' || l.status === 'Callback').length;
+    const pending = logs.filter(l => l.status === 'Pending').length;
+    // Group "Others"
+    const others = logs.filter(l => ['Busy', 'Callback', 'No Answer', 'Wrong Number'].includes(l.status)).length;
     const positive = logs.filter(l => l.sentiment === 'Positive').length;
-    return { total, connected, pending, positive };
+    const negative = logs.filter(l => l.sentiment === 'Negative').length;
+    return { total, connected, pending, others, positive, negative };
   }, [logs]);
 
   // Quick Filter Handlers
-  const applyQuickFilter = (type: 'total' | 'connected' | 'pending' | 'positive') => {
+  const applyQuickFilter = (type: 'total' | 'connected' | 'pending' | 'others' | 'positive' | 'negative') => {
     // Reset all first
     setStatusFilter('All');
     setSentimentFilter('All');
     setDateFilter('');
-    setCurrentView('overview'); // Ensure we see the list
+    setCurrentView('overview');
 
     switch(type) {
       case 'total':
@@ -671,10 +769,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
         setStatusFilter('Connected');
         break;
       case 'pending':
-        setStatusFilter('ACTION_REQUIRED'); // Matches Pending OR Callback
+        setStatusFilter('Pending');
+        break;
+      case 'others':
+        setStatusFilter('OTHERS'); 
         break;
       case 'positive':
         setSentimentFilter('Positive');
+        break;
+      case 'negative':
+        setSentimentFilter('Negative');
         break;
     }
   };
@@ -848,8 +952,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
               {/* OVERVIEW CONTENT (Stats + Charts) - Only shown in Overview view */}
               {currentView === 'overview' && (
                 <>
-                  {/* Top Stats Cards - Interactive */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                  {/* Top Stats Cards - 6 Columns */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
                      <StatCard 
                         label="Total Calls" 
                         value={stats.total} 
@@ -867,20 +971,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
                         isActive={statusFilter === 'Connected'}
                      />
                      <StatCard 
-                        label="Pending Action" 
+                        label="Pending" 
                         value={stats.pending} 
                         icon={<Clock size={16} />} 
-                        color="bg-orange-500" 
+                        color="bg-purple-500" 
                         onClick={() => applyQuickFilter('pending')}
-                        isActive={statusFilter === 'ACTION_REQUIRED'}
+                        isActive={statusFilter === 'Pending'}
                      />
                      <StatCard 
-                        label="Positive Feedback" 
+                        label="Others" 
+                        value={stats.others} 
+                        icon={<MoreHorizontal size={16} />} 
+                        color="bg-orange-500" 
+                        onClick={() => applyQuickFilter('others')}
+                        isActive={statusFilter === 'OTHERS'}
+                     />
+                     <StatCard 
+                        label="Positive" 
                         value={stats.positive} 
-                        icon={<TrendingUp size={16} />} 
-                        color="bg-purple-500" 
+                        icon={<ThumbsUp size={16} />} 
+                        color="bg-teal-500" 
                         onClick={() => applyQuickFilter('positive')}
                         isActive={sentimentFilter === 'Positive'}
+                     />
+                     <StatCard 
+                        label="Negative" 
+                        value={stats.negative} 
+                        icon={<ThumbsDown size={16} />} 
+                        color="bg-red-500" 
+                        onClick={() => applyQuickFilter('negative')}
+                        isActive={sentimentFilter === 'Negative'}
                      />
                   </div>
 
@@ -926,7 +1046,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
                                    { label: 'No Answer', value: logs.filter(l => l.status === 'No Answer').length, color: 'bg-red-500' },
                                    { label: 'Callback', value: logs.filter(l => l.status === 'Callback').length, color: 'bg-orange-500' },
                                    { label: 'Busy', value: logs.filter(l => l.status === 'Busy').length, color: 'bg-yellow-500' },
-                                   { label: 'Pending', value: logs.filter(l => l.status === 'Pending').length, color: 'bg-slate-400' },
+                                   { label: 'Wrong No', value: logs.filter(l => l.status === 'Wrong Number').length, color: 'bg-slate-500' },
                                  ]} total={logs.length} />
                                ) : (
                                   <div className="h-full flex items-center justify-center text-slate-400 text-sm">No data available</div>
@@ -1015,9 +1135,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
                        >
                          <option value="All">All Statuses</option>
                          <option value="Connected">Connected</option>
-                         <option value="ACTION_REQUIRED">Pending & Callback</option>
+                         <option value="Pending">Pending</option>
+                         <option value="OTHERS">Others / Follow-up</option>
                          <option value="No Answer">No Answer</option>
                          <option value="Busy">Busy</option>
+                         <option value="Wrong Number">Wrong Number</option>
                        </select>
                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                      </div>
@@ -1074,7 +1196,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
                                 <td className="px-6 py-4 whitespace-nowrap align-top">
                                   <div className="flex flex-col">
                                     <span className="font-medium text-slate-900">{log.date}</span>
-                                    <span className="text-xs text-slate-500">{log.time}</span>
+                                    <span className="text-xs text-slate-500">{formatToAmPm(log.time)}</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 align-top">
@@ -1107,7 +1229,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 text-right align-top">
-                                   <div className="flex items-center justify-end gap-1.5 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <div className="flex items-center justify-end gap-1.5 opacity-100">
                                       <button 
                                         onClick={() => setWhatsappTarget(log)}
                                         className="p-1.5 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -1146,8 +1268,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
                                  <div className="flex flex-col items-center gap-2">
                                    <Search size={32} className="opacity-20" />
                                    <p>{isLoading ? 'Loading records...' : 'No call logs found matching your filters.'}</p>
-                                   {statusFilter === 'ACTION_REQUIRED' && (
-                                     <p className="text-xs text-orange-500">Filtering for Pending & Callback items</p>
+                                   {statusFilter === 'OTHERS' && (
+                                     <p className="text-xs text-orange-500">Filtering for Busy, Callback, No Answer, & Wrong Number</p>
                                    )}
                                  </div>
                               </td>
@@ -1230,9 +1352,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onLogout, user }) => {
            />
         )}
 
-        {/* WhatsApp Selection Modal */}
+        {/* WhatsApp Modal with Workflow */}
         {whatsappTarget && (
-          <WhatsAppSelectionModal 
+          <WhatsAppModal 
             isOpen={!!whatsappTarget}
             onClose={() => setWhatsappTarget(null)}
             patient={whatsappTarget}
